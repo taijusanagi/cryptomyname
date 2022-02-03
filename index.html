@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="You can send/receive EHT using name! METAMASK will recognize name now!!"
+    />
+    <meta name="author" content="taijusanagi" />
+    <title>Crypto Myname</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/css/starter-template.css" rel="stylesheet" />
+  </head>
+  <body>
+    <header>
+      <nav class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container">
+          <div class="navbar-header">
+            <a class="navbar-brand" href="index.html">Crypto Myname</a>
+          </div>
+          <div id="navbar" class="collapse navbar-collapse">
+            <ul class="nav navbar-nav">
+              <li>
+                <a href="about.html">About</a>
+              </li>
+              <li>
+                <a href="contact.html">Contact</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+    </header>
+    <div class="container">
+      <div class="row">
+        <div class="col-xs-6 col-xs-offset-3 col-sm-6 col-sm-offset-3">
+          <div id="switch"></div>
+          <div id="message"></div>
+        </div>
+      </div>
+    </div>
+    <footer class="footer">
+      <div class="container">
+        <p class="text-muted">
+          If you like this function and want to supprt my project, feel free to
+          donate to
+          <a href="#" id="donate">taijusanagi</a>
+          by this function :)
+        </p>
+      </div>
+    </footer>
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script
+      language="javascript"
+      type="text/javascript"
+      src="/js/web3.min.js"
+    ></script>
+    <script
+      language="javascript"
+      type="text/javascript"
+      src="/js/cryptomyname_abi.js"
+    ></script>
+    <script>
+      alert("please use metamask and connect it to ropsten");
+
+      var cryptoMyName;
+      var userAccount;
+
+      function startApp() {
+        var _cryptoMyNameAddress = "0x23BFFB7df704331785ce9A388d2C47aA95dF21d2";
+        cryptoMyName = new web3js.eth.Contract(
+          cryptoMyNameABI,
+          _cryptoMyNameAddress
+        );
+        var accountInterval = setInterval(function () {
+          web3js.eth.getAccounts((error, accounts) => {
+            if (accounts.length == 0) {
+              clearScreen();
+              $("#message").text(`Please login METAMASK or creat account!`);
+            } else {
+              if (accounts[0] !== userAccount) {
+                userAccount = accounts[0];
+                cryptoMyName.methods
+                  .checkNewAddress(userAccount)
+                  .call()
+                  .then(function (_result) {
+                    if (_result) {
+                      clearScreen();
+                      $("#switch").append(
+                        `  <h2>Register your name here!</h2>
+                         <p>Thank you for visiting "CryptoMyName". You can rigister your name here for free.
+                         <br/>It's "first come, first served", please take your name before someone takes.</p>
+                         <div class="form-group">
+                         <label>Please enter username you want</label>
+                         <input type="text" name="register_name" id="register_name" placeholder="Username" class="form-control">
+                         </div>
+                         <button type="button" id="register" class="btn btn-primary btn-block">Submit</button>`
+                      );
+                    } else {
+                      clearScreen();
+                      cryptoMyName.methods
+                        .getUserName(userAccount)
+                        .call()
+                        .then(function (_username) {
+                          $("#switch").append(
+                            `<h2>Welcome! ` +
+                              _username +
+                              `.</h2>
+                         <p>Now we only have "sending ETH by username" function... but we'll have more!!
+                         </br>You can ask your friend to register, and send ETH by username.
+                         </br>Please make sure destination address is correct for first sending.</p>
+                         <div class="form-group">
+                         <label>Please enter destination username</label>
+                         <input type="text" name="sendTo" id="sendTo" placeholder="Username" class="form-control">
+                         </div>
+                         <div class="form-group">
+                         <label>Please enter ETH amount</label>
+                         <input type="text" name="amount" id="amount" placeholder="Amount" class="form-control">
+                         </div>
+                         <button type="button" id="send" class="btn btn-primary btn-block">Submit</button>`
+                          );
+                        });
+                    }
+                  });
+              }
+            }
+          });
+        }, 100);
+      }
+
+      window.addEventListener(`load`, async function () {
+        if (typeof web3 !== `undefined`) {
+          await window.ethereum.enable();
+          web3js = new Web3(window.ethereum);
+          startApp();
+        } else {
+          clearScreen();
+          $("#message").text(`Please enable METAMASK and reload!`);
+        }
+      });
+
+      $(document).on("click", "#register", function () {
+        var _username = $("#register_name").val();
+        cryptoMyName.methods
+          .checkNewAddress(userAccount)
+          .call()
+          .then(function (_result) {
+            if (_result) {
+              cryptoMyName.methods
+                .checkNewUserName(_username)
+                .call()
+                .then(async function (_result) {
+                  if (_result) {
+                    $("#message").text(
+                      "Registering your name on the blockchain. This may take a while..."
+                    );
+
+                    // this code looks wired but estimate gas is not working in this code... so I set * 5 for gas limit
+                    const gasLimit =
+                      (await cryptoMyName.methods
+                        .registerUser(_username)
+                        .estimateGas()) * 5;
+
+                    cryptoMyName.methods
+                      .registerUser(_username)
+                      .send({ from: userAccount, gasLimit })
+                      .on("receipt", function (_receipt) {
+                        clearScreen();
+                        cryptoMyName.methods
+                          .getUserName(userAccount)
+                          .call()
+                          .then(function (_username) {
+                            $("#switch").append(
+                              `<h2>Welcome! ` +
+                                _username +
+                                `.</h2>
+                        <p>Now we only have "sending ETH by username" function... but we'll have more!!
+                         </br>You can ask your friend to register, and send ETH by username.
+                         </br>Please make sure destination address is correct for first sending.</p>
+
+                         <label>Please enter destination username</label>
+                         <div class="form-group">
+                         <input type="text" name="sendTo" id="sendTo" placeholder="Username" class="form-control">
+                         </div>
+                         <label>Please enter ETH amount</label>
+                         <div class="form-group">
+                         <input type="text" name="amount" id="amount" placeholder="Amount" class="form-control">
+                         </div>
+                         <button type="button" id="send" class="btn btn-primary btn-block">Submit</button>`
+                            );
+                          });
+                      })
+                      .on("error", function (_error) {
+                        $("#message").text(
+                          "Something wrong... error detail is: " + _error
+                        );
+                      });
+                  } else {
+                    $("#message").text(
+                      `Sorry your name has been taken! Please try again!`
+                    );
+                  }
+                });
+            } else {
+              $("#message").text("You already have name!");
+            }
+          });
+      });
+
+      $(document).on("click", "#send", function () {
+        var _sendTo = $("#sendTo").val();
+        var _amount = $("#amount").val();
+        cryptoMyName.methods
+          .getAddress(_sendTo)
+          .call()
+          .then(function (_address) {
+            web3js.eth.sendTransaction({
+              from: userAccount,
+              to: _address,
+              value: web3js.utils.toWei(_amount, "ether"),
+            });
+          });
+      });
+
+      function clearScreen() {
+        $("#switch").empty();
+        $("#message").empty();
+      }
+
+      $(document).on("click", "#donate", function () {
+        $("#sendTo").val("taijusanagi");
+        $("#amount").val(0.001);
+      });
+    </script>
+  </body>
+</html>
